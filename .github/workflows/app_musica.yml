@@ -1,0 +1,76 @@
+name: Compilar App de Musica Nativo PS3
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: psl1ght/psl1ght:latest
+
+    steps:
+    - name: Iniciar o Ambiente Virtual
+      uses: actions/checkout@v4
+
+    - name: Escrever o Codigo em C (main.c)
+      run: |
+        cat << 'EOF' > main.c
+        #include <stdio.h>
+        #include <stdlib.h>
+        #include <string.h>
+        #include <ps3util/video.h>
+        #include <audio/audio.h>
+        #include <sysutil/sysutil.h>
+
+        int main(int argc, char* argv[]) {
+            init_video();
+            init_audio();
+            printf("App de Musica Iniciado com Sucesso em Tela Cheia!\n");
+
+            while(1) {
+                sysUtilCheckCallback();
+                flip_video_buffer();
+            }
+
+            stop_audio();
+            stop_video();
+            return 0;
+        }
+        EOF
+
+    - name: Escrever o Manual de Instrucoes (Makefile)
+      run: |
+        cat << 'EOF' > Makefile
+        TITLE          := Meu App de Musica
+        APPID          := MUSC00001
+        CONTENT_ID     := UP0001-MUSC00001_00-0000111122223333
+
+        TARGET         := eboot.elf
+        OBJS           := main.o
+
+        LIBS           := -lps3util -laudio -lsysutil
+
+        include $(PS3DEV)/ps3sdk/build_rules.mk
+        EOF
+
+    - name: Fabricar o Executavel do PS3 e o Arquivo PKG
+      run: |
+        export PATH=$PATH:$PS3DEV/bin:$PS3DEV/ppu/bin
+        make
+        make_sfo --title "Meu App de Musica" --appid "MUSC00001" PARAM.SFO
+        mkdir -p input/C00/USRDIR
+        cp eboot.bin input/C00/USRDIR/EBOOT.BIN
+        cp PARAM.SFO input/C00/PARAM.SFO
+        echo "Content-ID = UP0001-MUSC00001_00-0000111122223333" > package.conf
+        echo "PackageType = Homebrew" >> package.conf
+        make_package_npdrm package.conf input
+        mv *.pkg MeuAppMusicaPS3.pkg
+
+    - name: Disponibilizar o Instalador PKG para o Celular
+      uses: actions/upload-artifact@v4
+      with:
+        name: Instalador-App-Musica
+        path: MeuAppMusicaPS3.pkg
+        
