@@ -1,0 +1,44 @@
+name: Build PS3 Music Player
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ps3dev/psl1ght:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mostra versao do toolchain
+        run: |
+          echo "PSL1GHT=$PSL1GHT"
+          echo "PS3DEV=$PS3DEV"
+          ls -la
+          cat Makefile
+
+      - name: Build PKG
+        run: |
+          make clean || true
+          make -j$(nproc)
+
+      - name: Lista artefatos
+        run: |
+          ls -lh *.pkg *.elf || true
+          ls -lh pkg/USRDIR/ || true
+
+      - name: Upload PKG
+        uses: actions/upload-artifact@v4
+        with:
+          name: musicplayer-ps3
+          path: |
+            *.pkg
+            *.elf
+          if-no-files-found: error
