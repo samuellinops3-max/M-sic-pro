@@ -109,22 +109,6 @@ static void fill_rect(int x, int y, int w, int h, u32 c)
     }
 }
 
-static void circle(int cx, int cy, int r, u32 c)
-{
-    if (r < 1) r = 1;
-    if (cx + r < 0 || cx - r >= (int)W || cy + r < 0 || cy - r >= (int)H) return;
-    for (int dy = -r; dy <= r; dy++) {
-        int y = cy + dy;
-        if (y < 0 || y >= (int)H) continue;
-        int hw = (int)sqrtf((float)(r * r - dy * dy));
-        int x0 = cx - hw, x1 = cx + hw;
-        if (x0 < 0) x0 = 0;
-        if (x1 >= (int)W) x1 = W - 1;
-        u32 *p = back + y * W;
-        for (int x = x0; x <= x1; x++) p[x] = c;
-    }
-}
-
 typedef struct { char c; const char *p; } Glyph;
 static const Glyph glyphs[] = {
     {'0', "###" "#.#" "#.#" "#.#" "###"}, {'1', ".#." "##." ".#." ".#." "###"},
@@ -310,7 +294,7 @@ static void audio_cb(void *arg, u32 samples, float *buf)
 static void audio_start(void)
 {
     audioInit();
-    AudioPortParam p;
+    audioPortParam p;
     memset(&p, 0, sizeof(p));
     p.numChannels = 2;
     p.numBlocks = 8;
@@ -332,8 +316,6 @@ static void play_idx(int idx)
 static void render_ui(void)
 {
     float sc = (float)W / 1280.0f;
-    int ui = (int)(4 * sc + 0.5f);
-    if (ui < 3) ui = 3;
     for (u32 i = 0; i < W * H; i++) back[i] = 0x000F1115;
     fill_rect(0, 0, W, 70, 0x0016181D);
     draw_text("MUSIC PLAYER", 28, 22, 4, 0x00FFFFFF);
@@ -377,12 +359,12 @@ static void render_ui(void)
         }
         for (int b = 0; b < 32; b++) {
             float v = volLevel * 3.0f + 0.05f * sinf(frame * 0.2f + b);
-            if (v > 1) v = 1; if (v < 0.05f) v = 0.05f;
+            if (v > 1) v = 1;
+            if (v < 0.05f) v = 0.05f;
             int h = (int)(v * 90);
             fill_rect(40 + b * 32, 650 - h, 22, h, 0x0038B6FF);
         }
         draw_text("CIMA/BAIXO NAVEGA  X TOCA/PAUSA  L1/R1 ANT/PROX  QUADRADO PARA  TRIANGULO ATUALIZA", 40, 690, 2, 0x00809BBF);
-        (void)ui;
     }
 }
 
