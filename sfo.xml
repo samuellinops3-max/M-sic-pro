@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<sfo>
+  <param key="TITLE" type="str" max_len="128">Music Player</param>
+  <param key="APP_VER" type="str" max_len="8">01.00</param>
+  <param key="CATEGORY" type="str" max_len="4">HG</param>
+  <param key="BOOTABLE" type="int" max_len="4">1</param>
+  <param key="RESOLUTION" type="int" max_len="4">0</param>
+  <param key="SOUND_FORMAT" type="int" max_len="4">0</param>
+  <param key="PARENTAL_LEVEL" type="int" max_len="4">0</param>
+  <param key="PS3_SYSTEM_VER" type="str" max_len="8">03.4100</param>
+</sfo>
