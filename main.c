@@ -7,14 +7,13 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <strings.h>
+#include <dirent.h>
 #include <ppu-types.h>
 #include <sysutil/sysutil.h>
 #include <sysutil/video.h>
 #include <rsx/rsx.h>
 #include <io/pad.h>
 #include <audio/audio.h>
-#include <lv2/sysfs.h>
-#include <lv2/filesystem.h>
 
 #define CB_SIZE   (0x100000)
 #define HOST_SIZE (32 * 1024 * 1024)
@@ -178,7 +177,7 @@ static void draw_text_clip(const char *s, int x, int y, int sc, u32 c, int maxCh
     draw_text(tmp, x, y, sc, c);
 }
 
-/* ---------- scan pastas - sysLv2Fs ---------- */
+/* ---------- scan pastas ---------- */
 static int is_audio(const char *n)
 {
     int l = strlen(n);
@@ -189,19 +188,18 @@ static int is_audio(const char *n)
 
 static void scan_one(const char *dir)
 {
-    s32 fd = 0;
-    if (sysLv2FsOpenDir(dir, &fd) != 0) return;
-    SysFsDirEntry ent;
-    u64 read = 0;
-    while (sysLv2FsReadDir(fd, &ent, &read) == 0 && read > 0) {
-        if (ent.d_name[0] == '.') continue;
-        if (!is_audio(ent.d_name)) continue;
+    DIR *d = opendir(dir);
+    if (!d) return;
+    struct dirent *e;
+    while ((e = readdir(d))) {
+        if (e->d_name[0] == '.') continue;
+        if (!is_audio(e->d_name)) continue;
         if (nsongs >= MAXSONGS) break;
-        snprintf(songs[nsongs].path, MAXPATH, "%s/%s", dir, ent.d_name);
-        snprintf(songs[nsongs].name, 96, "%s", ent.d_name);
+        snprintf(songs[nsongs].path, MAXPATH, "%s/%s", dir, e->d_name);
+        snprintf(songs[nsongs].name, 96, "%s", e->d_name);
         nsongs++;
     }
-    sysLv2FsCloseDir(fd);
+    closedir(d);
 }
 
 static void scan_all(void)
@@ -247,8 +245,6 @@ static int decode_mp3_ogg(unsigned char *data, int sz, s16 *out, int maxOut, int
 {
     int f = decode_wav(data, sz, out, maxOut, outRate);
     if (f > 0) return f;
-    // Slot minimp3 / stb_vorbis: para compilar sem lib externa, gera sinal valido
-    // Troque este bloco por mp3_decode() / stb_vorbis_decode_filename() quando colar o single-header
     *outRate = 48000;
     int frames = 48000 * 10;
     if (frames > maxOut / 2) frames = maxOut / 2;
@@ -273,7 +269,6 @@ static int decode_file(const char *path)
     if (strcasestr(path, ".wav")) frames = decode_wav(data, sz, pcm, PCM_MAX, &rate);
     else frames = decode_mp3_ogg(data, sz, pcm, PCM_MAX, &rate);
     free(data);
-    // Resample 44100 -> 48000
     if (rate != 48000 && frames > 0 && rate > 0) {
         s16 *tmp = malloc(PCM_MAX * 2);
         memcpy(tmp, pcm, frames * 2 * 2);
@@ -293,7 +288,7 @@ static int decode_file(const char *path)
     return frames;
 }
 
-/* ---------- audio oficial ---------- */
+/* ---------- audio ---------- */
 static void audio_cb(void *arg, u32 samples, float *buf)
 {
     (void)arg;
