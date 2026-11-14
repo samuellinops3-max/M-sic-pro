@@ -1,62 +1,54 @@
 name: Compilar PKG
-
 on:
   push:
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     container: ubuntu:20.04
     steps:
+      - name: Limpar espaco
+        run: |
+          df -h
+          rm -rf /usr/share/dotnet /opt/hostedtoolcache /usr/local/lib/android || true
+          apt-get clean || true
+          df -h
       - name: Dependencias
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y curl make git python2 python3 libgmp10 libelf1 zlib1g libssl1.1 bzip2 xz-utils
           ln -sf /usr/bin/python2 /usr/bin/python
-
       - uses: actions/checkout@v4
-
       - name: Baixar toolchain do PS3
         run: |
           curl -sL https://github.com/bucanero/ps3toolchain/releases/download/ubuntu-latest-fad3b5fb/ps3dev-ubuntu-latest-2020-08-31.tar.gz | tar xz -C /opt
-          ls /opt/ps3dev
           echo "PS3DEV=/opt/ps3dev" >> $GITHUB_ENV
           echo "PSL1GHT=/opt/ps3dev" >> $GITHUB_ENV
           echo "/opt/ps3dev/bin" >> $GITHUB_PATH
           echo "/opt/ps3dev/ppu/bin" >> $GITHUB_PATH
-
       - name: Gerar icone
         run: |
           python3 - <<'PY'
           import zlib, struct, math
-          W, H = 320, 176
-          # Fundo verde escuro + barras de som + nota musical
-          raw = b''
+          W,H=320,176
+          raw=b''
           for y in range(H):
-              raw += b'\x00'
+              raw+=b'\x00'
               for x in range(W):
-                  px = (15, 25, 35 + y // 6)
-                  # barras de equalizador
+                  px=(15,25,35+y//6)
                   for i in range(12):
-                      bx = 30 + i * 20
-                      bh = 40 + int(30 * abs(math.sin(i * 0.8)))
-                      if bx <= x < bx + 12 and 120 - bh <= y < 120:
-                          px = (0, 255, 120) if i % 2 == 0 else (0, 200, 90)
-                  # circulo da nota
-                  if (x - 250) ** 2 + (y - 70) ** 2 < 28 * 28:
-                      px = (0, 255, 120)
-                  raw += bytes(px)
-          def chunk(t, d):
-              c = struct.pack('>I', len(d)) + t + d
-              return c + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
-          png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', W, H, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
-          open('ICON0.PNG', 'wb').write(png)
+                      bx=30+i*20;bh=40+int(30*abs(math.sin(i*0.8)))
+                      if bx<=x<bx+12 and 120-bh<=y<120: px=(0,255,120) if i%2==0 else (0,200,90)
+                  if (x-250)**2+(y-70)**2<28*28: px=(0,255,120)
+                  raw+=bytes(px)
+          def chunk(t,d):
+              c=struct.pack('>I',len(d))+t+d
+              return c+struct.pack('>I',zlib.crc32(t+d)&0xffffffff)
+          png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',W,H,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(raw))+chunk(b'IEND',b'')
+          open('ICON0.PNG','wb').write(png)
           PY
-
       - name: Compilar
         run: make
-
       - uses: actions/upload-artifact@v4
         with:
           name: musicplayer-pkg
